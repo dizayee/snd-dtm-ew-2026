@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <link href='https://fonts.googleapis.com/css?family=Lato:300,900' rel='stylesheet' type='text/css'>
+
+    <style>
+     body{
+        background-color: rgb(64,64,63);
+        margin: 0;
+        padding: 0;
+     }
+
+    :root {
+      --line-chart-color: #AAAAAA;
+    }
+
+     svg {
+        background-color: rgb(64,64,63);
+        font-family: 'Lato';
+        display: block;
+     }
+
+     svg text {
+       fill: #CCCCCC;
+     }
+
+     text.title {
+       fill: white;
+       font-weight: bold;
+     }
+
+     .axis, .axis text {
+       fill: var(--line-chart-color);
+     }
+
+     .axis line, path {
+      stroke: var(--line-chart-color);
+     }
+
+     path {
+       fill: none;
+     }
+
+    #events {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 20px 20px 20px;
+      font-family: 'Lato', sans-serif;
+      font-size: 18px;
+      color: #CCCCCC;
+      column-width: 380px;
+      column-gap: 40px;
+    }
+
+    #events p {
+      margin: 6px 0;
+      line-height: 1.5;
+      break-inside: avoid;
+    }
+
+    #events span.num {
+      display: inline-block;
+      width: 25px;
+      height: 25px;
+      line-height: 25px;
+      text-align: center;
+      background-color: #0033a0;
+      border: 2px solid #b0b0b0;
+      color: white;
+      border-radius: 50%;
+      font-size: 15px;
+      font-weight: bold;
+      margin-right: 8px;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    text.title {
+      font-size: 1.2em;
+    }
+
+    #tooltip {
+      position: absolute;
+      background: rgb(45,45,44);
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 8px 12px;
+      font-family: 'Lato', sans-serif;
+      font-size: 13px;
+      color: #EEEEEE;
+      pointer-events: none;
+      display: none;
+      box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+      line-height: 1.8;
+    }
+
+    </style>
+</head>
+<body>
+    <div id="tooltip"></div>
+    <svg width="100%" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet">
+      <text class="title" x=40 y=50>Recorded Events Triggering Displacement in Sudan</text>
+      <text x=40 y=80>Monthly incidents by type, April 2023 – April 2026</text>
+    </svg>
+    <div id="events"></div>
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script>
+
+    const width = 960
+    const height = 500
+    const margin = { top: 120, bottom: 80, left: 50, right: 50}
+    const x = d3.scaleTime().range([margin.left, width - margin.right ])
+          .domain([new Date(2023, 3, 1), new Date(2026, 3, 1)])
+    const y = d3.scaleLinear().range([height - margin.bottom, margin.top ])
+          .domain([0, 90])
+
+    d3.csv("data/timeline.csv", function(error, data) {
+      if (error) throw error;
+
+      for (var i = 0; i < data.length; i++) {
+        var parts = data[i].date.split("/");
+        data[i].date = new Date(parts[2], parts[1] - 1, parts[0]);
+        data[i].conflict = +data[i].conflict;
+        data[i].fire = +data[i].fire;
+        data[i]["rains&floodings"] = +data[i]["rains&floodings"];
+      }
+
+      var lineConflict = d3.line()
+        .x(function(d) { return x(d.date); })
+        .y(function(d) { return y(d.conflict); })
+
+      var lineFire = d3.line()
+        .x(function(d) { return x(d.date); })
+        .y(function(d) { return y(d.fire); })
+
+      var lineRains = d3.line()
+        .x(function(d) { return x(d.date); })
+        .y(function(d) { return y(d["rains&floodings"]); })
+
+      var areaConflict = d3.area()
+        .x(function(d) { return x(d.date); })
+        .y0(height - margin.bottom)
+        .y1(function(d) { return y(d.conflict); })
+
+      var areaFire = d3.area()
+        .x(function(d) { return x(d.date); })
+        .y0(height - margin.bottom)
+        .y1(function(d) { return y(d.fire); })
+
+      var areaRains = d3.area()
+        .x(function(d) { return x(d.date); })
+        .y0(height - margin.bottom)
+        .y1(function(d) { return y(d["rains&floodings"]); })
+
+      const svg = d3.select("svg")
+
+      svg.append("rect")
+        .attr("x", margin.left)
+        .attr("y", margin.top)
+        .attr("width", width - margin.left - margin.right)
+        .attr("height", height - margin.top - margin.bottom)
+        .style("fill", "rgba(255,255,255,0.04)")
+
+      svg.append('g')
+        .attr('class', 'lineChart')
+
+      svg.select("g.lineChart").datum(data).append("path")
+        .attr("id", "area-conflict")
+        .attr("d", areaConflict)
+        .style("fill", "rgba(232,51,109,0.15)")
+
+      svg.select("g.lineChart").datum(data).append("path")
+        .attr("id", "area-fire")
+        .attr("d", areaFire)
+        .style("fill", "rgba(255,112,67,0.15)")
+
+      svg.select("g.lineChart").datum(data).append("path")
+        .attr("id", "area-rains")
+        .attr("d", areaRains)
+        .style("fill", "rgba(66,165,245,0.15)")
+
+      svg.select("g.lineChart")
+        .datum(data)
+        .append("path")
+        .attr("id", "line-conflict")
+        .attr("d", lineConflict)
+        .style("stroke", "#E8336D")
+
+      svg.select("g.lineChart")
+        .datum(data)
+        .append("path")
+        .attr("id", "line-fire")
+        .attr("d", lineFire)
+        .style("stroke", "#FF7043")
+
+      svg.select("g.lineChart")
+        .datum(data)
+        .append("path")
+        .attr("id", "line-rains")
+        .attr("d", lineRains)
+        .style("stroke", "#42A5F5")
+
+      var dots = [
+        { field: "conflict",        color: "#E8336D", id: "dots-conflict" },
+        { field: "fire",            color: "#FF7043", id: "dots-fire"     },
+        { field: "rains&floodings", color: "#42A5F5", id: "dots-rains"    }
+      ];
+
+      for (var d = 0; d < dots.length; d++) {
+        var dotGroup = svg.append("g").attr("id", dots[d].id);
+        for (var i = 0; i < data.length; i++) {
+          var val = data[i][dots[d].field];
+          if (!isNaN(val)) {
+            dotGroup.append("circle")
+              .attr("cx", x(data[i].date))
+              .attr("cy", y(val))
+              .attr("r", 4)
+              .style("fill", dots[d].color)
+              .style("stroke", "white")
+              .style("stroke-width", 1.5)
+          }
+        }
+      }
+
+      const yAxis = d3.axisLeft(y).ticks(5).tickFormat(function(d){ return d})
+      const xAxis = d3.axisBottom(x).tickFormat(d3.timeFormat("%b-%Y"))
+      svg.append("g")
+        .attr("class", "axis y")
+        .attr("transform", "translate(" + margin.left + ", 0)")
+        .call(yAxis);
+      svg.append("g")
+        .attr("class", "axis x")
+        .attr("transform", "translate(0,"+ (height - margin.bottom) +")")
+        .call(xAxis);
+
+      var annotations = [];
+      var eventsDiv = document.getElementById("events");
+      var eventNum = 0;
+
+      for (var i = 0; i < data.length; i++) {
+        var title = data[i]["event-title"] ? data[i]["event-title"].trim() : "";
+        var desc  = data[i]["event-desc"]  ? data[i]["event-desc"].trim()  : "";
+        if (title !== "" && !isNaN(data[i].date.getTime())) {
+          eventNum = eventNum + 1;
+          annotations.push({
+            x: x(data[i].date),
+            num: eventNum
+          });
+          eventsDiv.innerHTML += "<p><span class='num'>" + eventNum + "</span><strong>" + title + "</strong> — " + desc + "</p>";
+        }
+      }
+
+      for (var k = 0; k < annotations.length; k++) {
+        var ax = annotations[k].x;
+
+        svg.append("line")
+          .attr("x1", ax)
+          .attr("x2", ax)
+          .attr("y1", margin.top - 5)
+          .attr("y2", height - margin.bottom)
+          .style("stroke", "#b0b0b0")
+          .style("stroke-width", 1)
+          .style("stroke-dasharray", "4,3")
+
+        svg.append("circle")
+          .attr("cx", ax)
+          .attr("cy", margin.top - 16)
+          .attr("r", 10)
+          .style("fill", "#0033A0")
+          .style("stroke","#b0b0b0")
+          .style("stroke-width", 1)
+
+        svg.append("text")
+          .attr("x", ax)
+          .attr("y", margin.top - 12)
+          .style("text-anchor", "middle")
+          .style("fill", "white")
+          .style("font-size", "10px")
+          .style("font-weight", "bold")
+          .text(annotations[k].num)
+      }
+
+      var tooltip = document.getElementById("tooltip");
+
+      var hoverColumn = svg.append("rect")
+        .attr("y", margin.top)
+        .attr("width", 18)
+        .attr("height", height - margin.top - margin.bottom)
+        .style("fill", "rgba(200, 220, 255, 0.12)")
+        .style("display", "none")
+        .style("pointer-events", "none")
+
+      svg.append("rect")
+        .attr("x", margin.left)
+        .attr("y", margin.top)
+        .attr("width", width - margin.left - margin.right)
+        .attr("height", height - margin.top - margin.bottom)
+        .style("fill", "none")
+        .style("pointer-events", "all")
+        .on("mousemove", function() {
+          var mouseX = d3.mouse(this)[0];
+          var mouseDate = x.invert(mouseX);
+
+          var nearest = data[0];
+          var minDiff = Math.abs(mouseDate - data[0].date);
+          for (var t = 1; t < data.length; t++) {
+            var diff = Math.abs(mouseDate - data[t].date);
+            if (diff < minDiff) {
+              minDiff = diff;
+              nearest = data[t];
+            }
+          }
+
+          var dateStr = d3.timeFormat("%b-%Y")(nearest.date);
+          tooltip.innerHTML =
+            "<strong>" + dateStr + "</strong><br>" +
+            "<span style='color:#E8336D'>Conflict: " + nearest.conflict + "</span><br>" +
+            "<span style='color:#FF7043'>Fire: " + nearest.fire + "</span><br>" +
+            "<span style='color:#42A5F5'>Rains & Flooding: " + nearest["rains&floodings"] + "</span>";
+
+          tooltip.style.display = "block";
+          tooltip.style.left = (d3.event.pageX + 15) + "px";
+          tooltip.style.top  = (d3.event.pageY - 40) + "px";
+
+          hoverColumn
+            .attr("x", x(nearest.date) - 9)
+            .style("display", "block");
+        })
+        .on("mouseout", function() {
+          tooltip.style.display = "none";
+          hoverColumn.style("display", "none");
+        });
+
+      var legendY = height - margin.bottom + 30;
+      var legendTotalW = 330;
+      var legendStartX = (width - legendTotalW) / 2;
+      var legendItems = [
+        { label: "Conflict",         color: "#E8336D", offsetX: 0,   pillW: 90,  lineId: "line-conflict", dotsId: "dots-conflict", areaId: "area-conflict", visible: true },
+        { label: "Fire",             color: "#FF7043", offsetX: 105, pillW: 65,  lineId: "line-fire",     dotsId: "dots-fire",     areaId: "area-fire",     visible: true },
+        { label: "Rains & Flooding", color: "#42A5F5", offsetX: 185, pillW: 145, lineId: "line-rains",    dotsId: "dots-rains",    areaId: "area-rains",    visible: true }
+      ];
+
+      for (var j = 0; j < legendItems.length; j++) {
+        var item = legendItems[j];
+        var lx = legendStartX + item.offsetX;
+
+        var legendGroup = svg.append("g")
+          .style("cursor", "pointer")
+          .attr("data-index", j)
+
+        legendGroup.append("rect")
+          .attr("x", lx)
+          .attr("y", legendY)
+          .attr("width", item.pillW)
+          .attr("height", 26)
+          .attr("rx", 13)
+          .attr("ry", 13)
+          .style("fill", item.color)
+
+        legendGroup.append("text")
+          .attr("x", lx + item.pillW / 2)
+          .attr("y", legendY + 17)
+          .style("fill", "white")
+          .style("font-size", "12px")
+          .style("text-anchor", "middle")
+          .text(item.label)
+
+        legendGroup.on("click", function() {
+          var idx = +d3.select(this).attr("data-index");
+          var clicked = legendItems[idx];
+          clicked.visible = !clicked.visible;
+
+          var newOpacity = clicked.visible ? 1 : 0.15;
+
+          d3.select("#" + clicked.lineId)
+            .transition().duration(400)
+            .style("opacity", newOpacity)
+
+          d3.select("#" + clicked.dotsId)
+            .transition().duration(400)
+            .style("opacity", newOpacity)
+
+          d3.select("#" + clicked.areaId)
+            .transition().duration(400)
+            .style("opacity", newOpacity)
+
+          d3.select(this).select("rect")
+            .transition().duration(400)
+            .style("fill",    clicked.visible ? clicked.color : "none")
+            .style("stroke",  clicked.color)
+            .style("stroke-width", clicked.visible ? 0 : 2)
+
+          d3.select(this).select("text")
+            .transition().duration(400)
+            .style("fill", clicked.visible ? "white" : clicked.color)
+        })
+      }
+
+    });
+    
+    </script>
+</body>
+</html>
